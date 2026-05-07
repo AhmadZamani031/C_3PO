@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مین‌روب - C-3PO</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Tahoma, sans-serif; background: #2c3e50; color: white; display: flex; flex-direction: column; align-items: center; padding: 10px; }
+    h2 { color: #e74c3c; margin: 10px; }
+    .board { display: grid; grid-template-columns: repeat(8, 50px); gap: 2px; background: #34495e; padding: 5px; border-radius: 8px; }
+    .cell { width: 50px; height: 50px; background: #7f8c8d; display: flex; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; font-size: 20px; border-radius: 4px; }
+    .cell.revealed { background: #ecf0f1; color: #2c3e50; }
+    .cell.flagged::after { content: '🚩'; }
+    .cell.mine { background: #e74c3c; }
+    .mode-btn { background: #f39c12; border: none; padding: 10px 20px; border-radius: 8px; margin: 10px; cursor: pointer; font-size: 16px; }
+    .mode-btn:active { opacity: 0.8; }
+    #result { font-weight: bold; margin: 10px; }
+  </style>
+</head>
+<body>
+  <h2>💣 مین‌روب</h2>
+  <div id="result"></div>
+  <div class="board" id="board"></div>
+  <button class="mode-btn" id="modeBtn">🚩 حالت پرچم</button>
+
+  <script>
+    const Tg = window.Telegram.WebApp;
+    Tg.ready();
+    const params = new URLSearchParams(location.search);
+    const chatId = params.get('chat_id');
+    const gameId = params.get('game_id');
+    const rows = 8, cols = 8, mines = 10;
+    let mode = 'reveal'; // reveal or flag
+    let gameOver = false;
+    let board = [];
+    let revealed = [];
+    let flagged = [];
+
+    function init() {
+      // ایجاد تخته خالی
+      board = Array.from({length: rows}, () => Array(cols).fill(0));
+      revealed = Array.from({length: rows}, () => Array(cols).fill(false));
+      flagged = Array.from({length: rows}, () => Array(cols).fill(false));
+      // جای‌گذاری مین‌ها
+      let placed = 0;
+      while (placed < mines) {
+        const r = Math.floor(Math.random() * rows);
+        const c = Math.floor(Math.random() * cols);
+        if (board[r][c] !== -1) {
+          board[r][c] = -1;
+          placed++;
+        }
+      }
+      // اعداد
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (board[r][c] === -1) continue;
+          let count = 0;
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              const nr = r + dr, nc = c + dc;
+              if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && board[nr][nc] === -1) count++;
+            }
+          }
+          board[r][c] = count;
+        }
+      }
+    }
+
+    function render() {
+      const boardDiv = document.getElementById('board');
+      boardDiv.innerHTML = '';
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell';
+          if (revealed[r][c]) {
+            cell.classList.add('revealed');
+            if (board[r][c] === -1) {
+              cell.textContent = '💣';
+              cell.classList.add('mine');
+            } else if (board[r][c] > 0) {
+              cell.textContent = board[r][c];
+            }
+          } else if (flagged[r][c]) {
+            cell.classList.add('flagged');
+          }
+          cell.addEventListener('click', () => handleClick(r, c));
+          boardDiv.appendChild(cell);
+        }
+      }
+      if (gameOver) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.textContent = '💥 بازی تمام شد!';
+        // ارسال نتیجه به ربات
+        Tg.sendData(JSON.stringify({
+          game: 'mines',
+          game_id: gameId,
+          action: 'gameover',
+          won: false
+        }));
+      }
+    }
+
+    function handleClick(r, c) {
+      if (gameOver || revealed[r][c]) return;
+      if (mode === 'flag') {
+        flagged[r][c] = !flagged[r][c];
+        render();
+        return;
+      }
+      if (flagged[r][c]) return;
+      reveal(r, c);
+      render();
+      if (checkWin()) {
+        gameOver = true;
+        document.getElementById('result').textContent = '🎉 برنده شدی!';
+        Tg.sendData(JSON.stringify({
+          game: 'mines',
+          game_id: gameId,
+          action: 'gameover',
+          won: true
+        }));
+        Tg.close();
+      }
+    }
+
+    function reveal(r, c) {
+      if (r < 0 || r >= rows || c < 0 || c >= cols || revealed[r][c] || flagged[r][c]) return;
+      revealed[r][c] = true;
+      if (board[r][c] === -1) {
+        gameOver = true;
+        // نشان دادن همه مین‌ها
+        for (let i = 0; i < rows; i++) {
+          for (let j = 0; j < cols; j++) {
+            if (board[i][j] === -1) revealed[i][j] = true;
+          }
+        }
+        render();
+        return;
+      }
+      if (board[r][c] === 0) {
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            reveal(r + dr, c + dc);
+          }
+        }
+      }
+    }
+
+    function checkWin() {
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (board[r][c] !== -1 && !revealed[r][c]) return false;
+        }
+      }
+      return true;
+    }
+
+    // تغییر حالت
+    document.getElementById('modeBtn').addEventListener('click', () => {
+      mode = mode === 'reveal' ? 'flag' : 'reveal';
+      document.getElementById('modeBtn').textContent = mode === 'reveal' ? '🚩 حالت پرچم' : '🔍 حالت آشکار';
+    });
+
+    init();
+    render();
+  </script>
+</body>
+</html>
