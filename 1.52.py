@@ -2963,6 +2963,8 @@ async def periodic_cleanup():
         cleanup_old_files()
 
 if __name__ == "__main__":
-    # نخ جداگانه برای پاک‌سازی تاریخچهٔ قدیمی
+    # رفع مشکل event loop در ویندوز
+    if sys.platform == 'win32':
+        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
     threading.Thread(target=clean_old_history, daemon=True).start()
     asyncio.run(main())
