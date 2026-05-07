@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>حکم - C-3PO</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Tahoma, sans-serif; background: #006b3c; color: white; display: flex; flex-direction: column; align-items: center; padding: 10px; }
+    h2 { color: #ffd700; margin: 10px; }
+    .hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin: 20px 0; }
+    .card { width: 70px; height: 100px; background: white; color: black; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 24px; font-weight: bold; cursor: pointer; box-shadow: 2px 2px 6px rgba(0,0,0,0.5); transition: transform 0.1s; }
+    .card:hover { transform: translateY(-5px); }
+    .card.selected { border: 3px solid gold; transform: translateY(-5px); }
+    .red { color: #c0392b; }
+    .black { color: #2c3e50; }
+    button { background: #ffd700; border: none; padding: 10px 25px; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 10px; }
+    button:active { background: #b5943a; }
+    #info { margin: 10px; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h2>🃏 حکم</h2>
+  <div id="info"></div>
+  <div class="hand" id="hand"></div>
+  <button id="playBtn">بازی این کارت</button>
+
+  <script>
+    const Tg = window.Telegram.WebApp;
+    Tg.ready();
+    const params = new URLSearchParams(location.search);
+    const chatId = params.get('chat_id');
+    const gameId = params.get('game_id');
+    const handBase64 = params.get('hand');
+    const trump = params.get('trump') || 'نامشخص';
+
+    let hand = [];
+    let selectedIndex = -1;
+
+    try {
+      if (handBase64) {
+        const jsonStr = atob(handBase64);
+        hand = JSON.parse(jsonStr);
+      }
+    } catch(e) {
+      hand = [];
+    }
+
+    const suitSymbols = ['♣','♦','♥','♠'];
+    const rankSymbols = {11:'J',12:'Q',13:'K',14:'A'};
+    function cardStr(card) {
+      const suit = suitSymbols[card[0]];
+      const rank = rankSymbols[card[1]] || card[1];
+      return rank + suit;
+    }
+
+    function render() {
+      document.getElementById('info').textContent = `برگ برنده: ${trump} | ${hand.length} کارت`;
+      const handDiv = document.getElementById('hand');
+      handDiv.innerHTML = '';
+      hand.forEach((card, idx) => {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'card ' + (card[0] === 1 || card[0] === 2 ? 'red' : 'black');
+        cardEl.textContent = cardStr(card);
+        if (idx === selectedIndex) cardEl.classList.add('selected');
+        cardEl.addEventListener('click', () => {
+          selectedIndex = idx;
+          render();
+        });
+        handDiv.appendChild(cardEl);
+      });
+    }
+
+    document.getElementById('playBtn').addEventListener('click', () => {
+      if (selectedIndex === -1) {
+        Tg.showAlert('لطفاً یک کارت انتخاب کنید.');
+        return;
+      }
+      Tg.sendData(JSON.stringify({
+        game: 'hokm',
+        game_id: gameId,
+        card_index: selectedIndex
+      }));
+      Tg.close();
+    });
+
+    if (hand.length === 0) {
+      document.getElementById('hand').innerHTML = '<p>دست شما خالی است یا اطلاعات نامعتبر.</p>';
+    } else {
+      render();
+    }
+  </script>
+</body>
+</html>
