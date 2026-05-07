@@ -100,6 +100,7 @@ PRAYER_API_URL   = "https://api.aladhan.com/v1/timingsByCity"
 
 # ---------- توابع کنسول (CMD) ----------
 def console_input_thread(app):
+    global MODEL_ENABLED
     """نخ جداگانه برای خواندن دستورات از کنسول"""
     while True:
         try:
