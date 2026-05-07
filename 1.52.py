@@ -45,6 +45,8 @@ import ollama
 import yt_dlp
 import instaloader
 
+import base64
+
 # ------------------- تنظیمات ظاهر کنسول -------------------
 init(autoreset=True)
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
@@ -2354,9 +2356,13 @@ async def hokm_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         state = hokm_games[chat_id]
         deal_hokm(state)
         for pid in state['players']:
-            hand_msg = f"🃏 دست شما:\n{hand_str(state['hands'][pid])}\nحاکم: {get_user_name(chat_id, state['hakem'])}\nبرگ برنده: {state['trump']}"
+            # دست این بازیکن را به JSON و base64 تبدیل می‌کنیم
+            hand_json = json.dumps(state['hands'][pid])
+            hand_b64 = base64.b64encode(hand_json.encode()).decode()
+            url = f"{MINI_APP_BASE_URL}/hokm.html?chat_id={chat_id}&game_id=hokm_{chat_id}&hand={hand_b64}&trump={state['trump']}"
+            keyboard = InlineKeyboardMarkup([[InlineKeyboardButton("🃏 مشاهده دست و بازی", web_app=WebAppInfo(url=url))]])
             try:
-                await context.bot.send_message(pid, hand_msg)
+                await context.bot.send_message(pid, f"دست شما:\n{hand_str(state['hands'][pid])}\nبرگ برنده: {state['trump']}\nروی دکمه کلیک کنید.", reply_markup=keyboard)
             except:
                 pass
         current_player = state['players'][state['turn_index']]
