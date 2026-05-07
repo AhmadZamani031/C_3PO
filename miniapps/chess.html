@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>شطرنج - C-3PO</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Tahoma, sans-serif; background: #1a1a2e; color: white; display: flex; flex-direction: column; align-items: center; padding: 10px; }
+    h2 { margin: 10px 0; color: #e0c068; }
+    #status { margin: 5px 0; font-weight: bold; color: #ffd700; }
+    .board-container { display: flex; align-items: center; }
+    .board { display: grid; grid-template-columns: repeat(8, 45px); grid-template-rows: repeat(8, 45px); border: 2px solid #333; margin: 10px; }
+    .cell { display: flex; align-items: center; justify-content: center; font-size: 30px; cursor: pointer; user-select: none; }
+    .cell.light { background: #f0d9b5; }
+    .cell.dark { background: #b58863; }
+    .cell.selected { box-shadow: inset 0 0 0 3px gold; }
+    .cell.possible { box-shadow: inset 0 0 0 3px rgba(0,255,0,0.7); }
+    button { background: #e0c068; border: none; padding: 10px 20px; border-radius: 8px; font-size: 16px; cursor: pointer; margin: 5px; }
+    button:active { background: #b5943a; }
+    .files, .ranks { display: flex; }
+    .files span, .ranks span { width: 45px; text-align: center; font-size: 14px; color: #ccc; }
+    .ranks { flex-direction: column; margin: 0 5px; }
+    .files { margin: 0 5px; }
+  </style>
+</head>
+<body>
+  <h2>♟️ شطرنج</h2>
+  <div id="status">نوبت سفید</div>
+  <div class="board-container">
+    <div class="ranks" id="ranks"></div>
+    <div class="board" id="board"></div>
+    <div class="ranks" id="ranks2"></div>
+  </div>
+  <div class="files" id="files"></div>
+  <button id="cancelBtn">لغو انتخاب</button>
+
+  <script>
+    const Tg = window.Telegram.WebApp;
+    Tg.ready();
+    const params = new URLSearchParams(location.search);
+    const chatId = params.get('chat_id');
+    const gameId = params.get('game_id');
+
+    // مهره‌ها
+    const pieces = {
+      'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
+      'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙',
+      '.': ''
+    };
+
+    // تخته اولیه
+    let board = [
+      ['r','n','b','q','k','b','n','r'],
+      ['p','p','p','p','p','p','p','p'],
+      ['.','.','.','.','.','.','.','.'],
+      ['.','.','.','.','.','.','.','.'],
+      ['.','.','.','.','.','.','.','.'],
+      ['.','.','.','.','.','.','.','.'],
+      ['P','P','P','P','P','P','P','P'],
+      ['R','N','B','Q','K','B','N','R']
+    ];
+
+    let selectedRow = -1, selectedCol = -1;
+    let turn = 'white'; // white or black
+
+    function render() {
+      const boardDiv = document.getElementById('board');
+      boardDiv.innerHTML = '';
+      for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+          const cell = document.createElement('div');
+          cell.className = 'cell ' + ((r + c) % 2 === 0 ? 'light' : 'dark');
+          cell.textContent = pieces[board[r][c]];
+          if (selectedRow === r && selectedCol === c) {
+            cell.classList.add('selected');
+          }
+          cell.addEventListener('click', () => onCellClick(r, c));
+          boardDiv.appendChild(cell);
+        }
+      }
+      document.getElementById('status').textContent = 'نوبت ' + (turn === 'white' ? 'سفید' : 'سیاه');
+      // رتبه‌ها
+      const ranks1 = document.getElementById('ranks');
+      const ranks2 = document.getElementById('ranks2');
+      let rHtml = '';
+      for (let i = 8; i >= 1; i--) rHtml += `<span>${i}</span>`;
+      ranks1.innerHTML = rHtml;
+      ranks2.innerHTML = rHtml;
+      const files = document.getElementById('files');
+      let fHtml = '';
+      for (let c = 'a'.charCodeAt(0); c <= 'h'.charCodeAt(0); c++) fHtml += `<span>${String.fromCharCode(c)}</span>`;
+      files.innerHTML = fHtml;
+    }
+
+    function onCellClick(r, c) {
+      if (selectedRow === -1) {
+        const piece = board[r][c];
+        if (piece === '.') return;
+        const isWhite = piece === piece.toUpperCase();
+        if ((turn === 'white' && !isWhite) || (turn === 'black' && isWhite)) return;
+        selectedRow = r;
+        selectedCol = c;
+        render();
+      } else {
+        if (r === selectedRow && c === selectedCol) {
+          // لغو انتخاب
+          selectedRow = -1;
+          selectedCol = -1;
+          render();
+          return;
+        }
+        // ارسال حرکت به ربات
+        const from = String.fromCharCode(97 + selectedCol) + (8 - selectedRow);
+        const to = String.fromCharCode(97 + c) + (8 - r);
+        Tg.sendData(JSON.stringify({
+          game: 'chess',
+          game_id: gameId,
+          move: from + to
+        }));
+        // بستن مینی‌اپ
+        Tg.close();
+      }
+    }
+
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+      selectedRow = -1;
+      selectedCol = -1;
+      render();
+    });
+
+    render();
+  </script>
+</body>
+</html>
