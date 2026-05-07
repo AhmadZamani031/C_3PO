@@ -113,7 +113,6 @@ def console_input_thread(app):
             persian_print(f"👤 کاربران: {len(chat_history)} | 🎮 بازی‌ها: {len(game_states)}", Fore.YELLOW)
             persian_print(f"✅ مدل فعال: {MODEL_ENABLED} | 💬 چت‌های فعال: {len(history)}", Fore.YELLOW)
         elif cmd.startswith("model "):
-            global MODEL_ENABLED
             parts = cmd.split()
             if len(parts) == 2 and parts[1] in ('on','off'):
                 MODEL_ENABLED = (parts[1] == 'on')
