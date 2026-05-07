@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ترویا - C-3PO</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Tahoma, sans-serif; background: #1e1e2f; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+    h2 { color: #f39c12; margin-bottom: 20px; }
+    #question { font-size: 18px; margin-bottom: 30px; text-align: center; padding: 15px; background: #2c2c3e; border-radius: 10px; width: 100%; max-width: 400px; }
+    .options { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 400px; }
+    .option { background: #3a3a5c; padding: 15px; border-radius: 8px; cursor: pointer; font-size: 16px; transition: background 0.2s; }
+    .option:hover { background: #4a4a7c; }
+    .option.selected { background: #f39c12; color: #1e1e2f; font-weight: bold; }
+    button { background: #27ae60; border: none; padding: 12px 30px; border-radius: 8px; font-size: 16px; cursor: pointer; margin-top: 20px; color: white; }
+    button:active { opacity: 0.8; }
+  </style>
+</head>
+<body>
+  <h2>🧠 ترویا</h2>
+  <div id="question"></div>
+  <div class="options" id="options"></div>
+  <button id="submitBtn">ارسال پاسخ</button>
+
+  <script>
+    const Tg = window.Telegram.WebApp;
+    Tg.ready();
+    const params = new URLSearchParams(location.search);
+    const chatId = params.get('chat_id');
+    const gameId = params.get('game_id');
+    const q = params.get('q');
+    const opts = [params.get('o0'), params.get('o1'), params.get('o2'), params.get('o3')];
+    const ans = parseInt(params.get('ans'));
+
+    let selected = -1;
+
+    document.getElementById('question').textContent = q;
+    const optionsDiv = document.getElementById('options');
+    opts.forEach((opt, idx) => {
+      const div = document.createElement('div');
+      div.className = 'option';
+      div.textContent = (idx + 1) + '. ' + opt;
+      div.addEventListener('click', () => {
+        selected = idx;
+        document.querySelectorAll('.option').forEach(el => el.classList.remove('selected'));
+        div.classList.add('selected');
+      });
+      optionsDiv.appendChild(div);
+    });
+
+    document.getElementById('submitBtn').addEventListener('click', () => {
+      if (selected === -1) {
+        Tg.showAlert('لطفاً یک گزینه انتخاب کنید.');
+        return;
+      }
+      Tg.sendData(JSON.stringify({
+        game: 'trivia',
+        game_id: gameId,
+        answer: selected
+      }));
+      Tg.close();
+    });
+  </script>
+</body>
+</html>
