@@ -61,7 +61,7 @@ def persian_print(text, color=Fore.WHITE):
 
 # ------------------- پیکربندی اصلی -------------------
 BALE_BASE_URL = "https://tapi.bale.ai/bot"
-TOKEN = ""
+TOKEN = "1020808223:_u-nyo25YbGwwYJwIK6JsmNqI-SfRrAwdpA"
 BOT_TOKEN = TOKEN  # نام دیگر برای استفاده در اعتبارسنجی WebApp
 MODEL = "my-gemma"
 MAX_HISTORY = 10
@@ -71,7 +71,7 @@ BOT_USERNAME = "C_3PObot"
 VERSION = "1.52"
 TEAM_NAME = "C-3PO Development Team"
 
-ADMIN_IDS = []  # شناسه ادمین‌ها
+ADMIN_IDS = [1656374684]  # شناسه ادمین‌ها
 
 DOWNLOAD_DIR = "downloads"
 MAX_FILE_SIZE_MB = 50
@@ -2724,6 +2724,8 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ------------------- پردازش پیام‌های متنی (چت با مدل) -------------------
 async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.message is None:
+        return
     user = update.effective_user
     chat_id = update.effective_chat.id
     chat_type = update.effective_chat.type
@@ -2890,10 +2892,21 @@ async def chat_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
 
 # ------------------- main و اجرا -------------------
-async def main():
+
+def run_periodic_cleanup():
+    while True:
+        time.sleep(1800)  # هر ۳۰ دقیقه
+        cleanup_old_files()
+
+if __name__ == "__main__":
+    # نخ‌های پس‌زمینه
+    threading.Thread(target=clean_old_history, daemon=True).start()
+    threading.Thread(target=run_periodic_cleanup, daemon=True).start()
+
+    # ایجاد Application
     app = Application.builder().token(TOKEN).base_url(BALE_BASE_URL).build()
 
-    # ثبت همهٔ دستورات
+    # ثبت همهٔ Handlerها (همان add_handlerهای قبلی، بدون تغییر)
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("help", help_command))
     app.add_handler(CommandHandler("clear", clear_history))
@@ -2935,7 +2948,6 @@ async def main():
     app.add_handler(CommandHandler("topk", topk))
     app.add_handler(CommandHandler("mirostat", mirostat))
     app.add_handler(CommandHandler("resetparams", resetparams))
-    # APIها
     app.add_handler(CommandHandler("currency", currency_command))
     app.add_handler(CommandHandler("weather", weather_command))
     app.add_handler(CommandHandler("prayer", prayer_command))
@@ -2947,24 +2959,12 @@ async def main():
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat_handler))
 
-    # شروع تسک‌های پس‌زمینه
-    asyncio.create_task(periodic_cleanup())
+    # نخ کنسول (CMD)
     threading.Thread(target=console_input_thread, args=(app,), daemon=True).start()
 
     persian_print(f"🤖 C-3PO {VERSION} | اجرا با PTB روی بله...", Fore.CYAN)
     persian_print(f"👤 کاربران: {len(chat_history)} | 🎮 بازی‌های فعال: {len(game_states)}", Fore.GREEN)
     persian_print("دستورات کنسول را با 'help' ببینید.", Fore.YELLOW)
 
-    await app.run_polling()
-
-async def periodic_cleanup():
-    while True:
-        await asyncio.sleep(1800)  # هر ۳۰ دقیقه
-        cleanup_old_files()
-
-if __name__ == "__main__":
-    # رفع مشکل event loop در ویندوز
-    if sys.platform == 'win32':
-        asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-    threading.Thread(target=clean_old_history, daemon=True).start()
-    asyncio.run(main())
+    # اجرای ربات (بدون asyncio.run)
+    app.run_polling()
